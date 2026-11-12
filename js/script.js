@@ -105,10 +105,25 @@
     sections.forEach(function (s) { navObserver.observe(s); });
   }
 
-  /* ---------- Contact form (no backend: opens email client) ---------- */
+  /* ---------- Contact form ----------
+     On Netlify the message is sent to Netlify Forms (stored + emailed).
+     Elsewhere (e.g. GitHub Pages) it falls back to the visitor's email app. */
   var form = document.getElementById('contact-form');
   var status = document.getElementById('form-status');
+  var submitBtn = form.querySelector('button[type="submit"]');
   var RECIPIENT = 'alsabateenammar@gmail.com';
+  var ON_NETLIFY = /\.netlify\.app$/.test(location.hostname);
+
+  function mailtoHref(name, email, subject, message) {
+    return 'mailto:' + RECIPIENT +
+      '?subject=' + encodeURIComponent(subject) +
+      '&body=' + encodeURIComponent(message + '\n\n— ' + name + ' (' + email + ')');
+  }
+
+  function setStatus(text, isError) {
+    status.textContent = text;
+    status.classList.toggle('error', !!isError);
+  }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -130,15 +145,35 @@
     var name = form.elements.name.value.trim();
     var email = form.elements.email.value.trim();
     var subject = form.elements.subject.value.trim() || 'Portfolio enquiry from ' + name;
-    var body = form.elements.message.value.trim() + '\n\n— ' + name + ' (' + email + ')';
+    var message = form.elements.message.value.trim();
 
-    window.location.href = 'mailto:' + RECIPIENT +
-      '?subject=' + encodeURIComponent(subject) +
-      '&body=' + encodeURIComponent(body);
+    if (!ON_NETLIFY || !window.fetch) {
+      window.location.href = mailtoHref(name, email, subject, message);
+      setStatus('Opening your email app… Thanks for reaching out!');
+      form.reset();
+      return;
+    }
 
-    status.classList.remove('error');
-    status.textContent = 'Opening your email app… Thanks for reaching out!';
-    form.reset();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    setStatus('');
+
+    fetch('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(new FormData(form)).toString()
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      setStatus('Thanks, ' + name + '! Your message has been sent — I’ll get back to you soon.');
+      form.reset();
+    }).catch(function () {
+      status.classList.add('error');
+      status.innerHTML = 'Sorry, the message could not be sent. Please email me directly at ' +
+        '<a href="' + mailtoHref(name, email, subject, message) + '">' + RECIPIENT + '</a>.';
+    }).then(function () {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send Message';
+    });
   });
 
   form.addEventListener('input', function (e) {
