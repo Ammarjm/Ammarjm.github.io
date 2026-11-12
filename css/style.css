@@ -831,3 +831,8 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2
   .socials a:active,
   .project-link:active { transform: scale(0.97); }
 }
+
+/* Keep footer links clear of the host's floating badge on small screens */
+@media (max-width: 860px) {
+  .site-footer { padding-bottom: 96px; }
+}
